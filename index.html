@@ -8,11 +8,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC5r...",
@@ -32,9 +31,268 @@ window.signOut = signOut;
 window.collection = collection;
 window.addDoc = addDoc;
 window.getDocs = getDocs;
+window.updateDoc = updateDoc;
+window.doc = doc;
 </script>
 
 <style>
+body { margin:0; font-family: Arial; background:#f5f7fa; }
+
+/* 🔴 TOPBAR */
+.topbar {
+  background:#dc2626;
+  color:white;
+  padding:10px 20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.top-left {
+  display:flex;
+  align-items:center;
+  gap:20px;
+}
+
+.top-left img {
+  height:40px;
+}
+
+.top-left a {
+  color:white;
+  cursor:pointer;
+  text-decoration:none;
+}
+
+.top-right {
+  display:flex;
+  align-items:center;
+  gap:15px;
+}
+
+/* MAIN */
+.main { padding:20px; }
+
+/* CARD */
+.card {
+  background:white;
+  padding:20px;
+  border-radius:10px;
+  margin-bottom:20px;
+}
+
+/* FORM */
+input, textarea, select {
+  width:100%;
+  padding:8px;
+  margin:5px 0 10px 0;
+  border-radius:6px;
+  border:1px solid #ccc;
+}
+
+/* BUTTON */
+button {
+  background:#dc2626;
+  color:white;
+  border:none;
+  padding:10px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+/* TABLE */
+table {
+  width:100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding:10px;
+  border-bottom:1px solid #eee;
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage" class="main">
+  <div class="card">
+    <h2>Kirjaudu</h2>
+    <form onsubmit="login(event)">
+      <input id="email" type="email" placeholder="Sähköposti" required>
+      <input id="password" type="password" placeholder="Salasana" required>
+      <button type="submit">Kirjaudu</button>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;">
+
+  <!-- 🔴 TOPBAR -->
+  <div class="topbar">
+    <div class="top-left">
+      <img src="logo.png">
+      <a onclick="showPage('dashboard')">Etusivu</a>
+      <a onclick="showPage('trips')">Junamatkat</a>
+    </div>
+
+    <div class="top-right">
+      <span id="userEmail"></span>
+      <button onclick="logout()">Kirjaudu ulos</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="page">
+      <div class="card">
+        <h2>Tilastot</h2>
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+
+    <!-- 🚆 TRIPS -->
+    <div id="trips" class="page" style="display:none;">
+      <div class="card">
+        <h2>Luo / Muokkaa matka</h2>
+
+        <input id="tripName" placeholder="Matkan nimi">
+        <input id="trainNumber" placeholder="Junan numero">
+        <textarea id="tripDesc" placeholder="Kuvaus"></textarea>
+
+        <select id="tripStatus">
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+        </select>
+
+        <button onclick="addTrip()">Tallenna</button>
+      </div>
+
+      <div class="card">
+        <h2>Matkat</h2>
+
+        <table>
+          <tr>
+            <th>Nimi</th>
+            <th>Juna</th>
+            <th>Status</th>
+            <th>Toiminnot</th>
+          </tr>
+          <tbody id="tripList"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+
+// 🔐 AUTH STATE
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    loginPage.style.display = "none";
+    app.style.display = "block";
+    document.getElementById("userEmail").innerText = user.email;
+    loadTrips();
+  } else {
+    loginPage.style.display = "block";
+    app.style.display = "none";
+  }
+});
+
+// 🔐 LOGIN (browser validation)
+function login(e) {
+  e.preventDefault();
+
+  const email = emailInput.value;
+  const password = passwordInput.value;
+
+  signInWithEmailAndPassword(auth, email, password)
+    .catch(() => {
+      emailInput.setCustomValidity("Virheellinen sähköposti tai salasana");
+      emailInput.reportValidity();
+    });
+}
+
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+
+// LOGOUT
+function logout() {
+  signOut(auth);
+}
+
+// NAV
+function showPage(id) {
+  document.querySelectorAll(".page").forEach(p => p.style.display = "none");
+  document.getElementById(id).style.display = "block";
+}
+
+// ➕ ADD TRIP
+async function addTrip() {
+  await addDoc(collection(db, "trips"), {
+    name: tripName.value,
+    trainNumber: trainNumber.value,
+    description: tripDesc.value,
+    status: tripStatus.value,
+    createdAt: new Date()
+  });
+
+  loadTrips();
+}
+
+// 📥 LOAD TRIPS
+async function loadTrips() {
+  const list = document.getElementById("tripList");
+  list.innerHTML = "";
+
+  const snapshot = await getDocs(collection(db, "trips"));
+
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${data.name}</td>
+      <td>${data.trainNumber}</td>
+      <td>${data.status}</td>
+      <td>
+        <button onclick="publishTrip('${docSnap.id}')">Julkaise</button>
+      </td>
+    `;
+
+    list.appendChild(tr);
+  });
+}
+
+// 🚀 PUBLISH
+async function publishTrip(id) {
+  await updateDoc(doc(db, "trips", id), {
+    status: "published"
+  });
+
+  loadTrips();
+}
+
+// 📊 CHART
+const ctx = document.getElementById('chart');
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: ['Ma','Ti','Ke','To','Pe'],
+    datasets: [{ label:'Liput', data:[5,10,7,12,9] }]
+  }
+});
+
+</script>
+
+</body>
+</html><style>
 body { margin:0; font-family: Arial; background:#f5f7fa; }
 .topbar { background:white; padding:15px; display:flex; gap:20px; }
 .topbar a { cursor:pointer; }

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      height: 100vh;
+      background: #0f172a;
+      color: white;
+    }
+
+    .sidebar {
+      width: 250px;
+      background: #020617;
+      padding: 20px;
+    }
+
+    .sidebar h2 {
+      margin-bottom: 20px;
+    }
+
+    .sidebar a {
+      display: block;
+      color: #94a3b8;
+      text-decoration: none;
+      margin: 10px 0;
+      padding: 8px;
+      border-radius: 6px;
+    }
+
+    .sidebar a:hover {
+      background: #1e293b;
+      color: white;
+    }
+
+    .main {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      border: none;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    td, th {
+      padding: 10px;
+      border-bottom: 1px solid #334155;
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>Admin</h2>
+  <a onclick="showPage('dashboard')">Etusivu</a>
+  <a onclick="showPage('trips')">Junamatkat</a>
+  <a onclick="showPage('tickets')">Matkaliput</a>
+  <a onclick="showPage('fleet')">Kalusto</a>
+  <a onclick="showPage('website')">Verkkosivut</a>
+  <a onclick="showPage('chat')">Keskustelu</a>
+  <a onclick="showPage('issues')">Häiriöt</a>
+  <a onclick="showPage('staff')">Henkilöstö</a>
+</div>
+
+<div class="main" id="content">
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="page">
+    <div class="card">
+      <h2>Tilastot</h2>
+      <p>Myydyt liput: 0</p>
+      <p>Tulevat matkat: 0</p>
+      <p>Kävijät: 0</p>
+    </div>
+  </div>
+
+  <!-- TRIPS -->
+  <div id="trips" class="page" style="display:none;">
+    <div class="card">
+      <h2>Junamatkat</h2>
+
+      <button onclick="toggleForm()">+ Luo matka</button>
+
+      <div id="tripForm" style="display:none; margin-top:20px;">
+        <input placeholder="Matkan nimi">
+        <input placeholder="Junan numero">
+        <textarea placeholder="Kuvaus"></textarea>
+        <button>Tallenna</button>
+      </div>
+
+      <table>
+        <tr>
+          <th>Nimi</th>
+          <th>Juna</th>
+          <th>Status</th>
+        </tr>
+        <tr>
+          <td>Esimerkki matka</td>
+          <td>1234</td>
+          <td>Draft</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- TICKETS -->
+  <div id="tickets" class="page" style="display:none;">
+    <div class="card">
+      <h2>Matkaliput</h2>
+      <table>
+        <tr>
+          <th>ID</th>
+          <th>Matka</th>
+          <th>Status</th>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- FLEET -->
+  <div id="fleet" class="page" style="display:none;">
+    <div class="card">
+      <h2>Kalusto</h2>
+      <button>+ Lisää kalusto</button>
+    </div>
+  </div>
+
+  <!-- WEBSITE -->
+  <div id="website" class="page" style="display:none;">
+    <div class="card">
+      <h2>Verkkosivut</h2>
+      <textarea placeholder="Etusivun teksti"></textarea>
+      <button>Tallenna</button>
+    </div>
+  </div>
+
+  <!-- CHAT -->
+  <div id="chat" class="page" style="display:none;">
+    <div class="card">
+      <h2>Keskustelu</h2>
+      <div style="height:200px; background:#0f172a; padding:10px; margin-bottom:10px;">
+        <p>Ei viestejä</p>
+      </div>
+      <input placeholder="Kirjoita viesti">
+      <button>Lähetä</button>
+    </div>
+  </div>
+
+  <!-- ISSUES -->
+  <div id="issues" class="page" style="display:none;">
+    <div class="card">
+      <h2>Häiriöt</h2>
+      <button>+ Lisää häiriö</button>
+    </div>
+  </div>
+
+  <!-- STAFF -->
+  <div id="staff" class="page" style="display:none;">
+    <div class="card">
+      <h2>Henkilöstö</h2>
+      <button>+ Lisää käyttäjä</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function showPage(pageId) {
+    document.querySelectorAll(".page").forEach(p => p.style.display = "none");
+    document.getElementById(pageId).style.display = "block";
+  }
+
+  function toggleForm() {
+    const form = document.getElementById("tripForm");
+    form.style.display = form.style.display === "none" ? "block" : "none";
+  }
+</script>
+
+</body>
+</html>

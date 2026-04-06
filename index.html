@@ -8,9 +8,24 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<!-- 🔐 SIMPLE POPUP LOGIN -->
+<script>
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "1234";
+
+const user = prompt("Käyttäjätunnus:");
+const pass = prompt("Salasana:");
+
+if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
+  alert("Väärä tunnus");
+  document.write("Pääsy estetty");
+  throw new Error("Access denied");
+}
+</script>
+
+<!-- 🔥 FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -20,19 +35,20 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
 
-window.auth = auth;
+// tehdään globaaliksi
 window.db = db;
-window.signInWithEmailAndPassword = signInWithEmailAndPassword;
-window.onAuthStateChanged = onAuthStateChanged;
-window.signOut = signOut;
 window.collection = collection;
 window.addDoc = addDoc;
 window.getDocs = getDocs;
 window.updateDoc = updateDoc;
 window.doc = doc;
+
+// lataa data heti kun firebase valmis
+window.addEventListener("DOMContentLoaded", () => {
+  loadTrips();
+});
 </script>
 
 <style>
@@ -115,121 +131,75 @@ th, td {
 
 <body>
 
-<!-- LOGIN -->
-<div id="loginPage" class="main">
-  <div class="card">
-    <h2>Kirjaudu</h2>
-    <form onsubmit="login(event)">
-      <input id="email" type="email" placeholder="Sähköposti" required>
-      <input id="password" type="password" placeholder="Salasana" required>
-      <button type="submit">Kirjaudu</button>
-    </form>
+<!-- 🔴 TOPBAR -->
+<div class="topbar">
+  <div class="top-left">
+    <img src="logo.png">
+    <a onclick="showPage('dashboard')">Etusivu</a>
+    <a onclick="showPage('trips')">Junamatkat</a>
+  </div>
+
+  <div class="top-right">
+    <span>Admin</span>
+    <button onclick="logout()">Kirjaudu ulos</button>
   </div>
 </div>
 
-<!-- APP -->
-<div id="app" style="display:none;">
+<div class="main">
 
-  <!-- 🔴 TOPBAR -->
-  <div class="topbar">
-    <div class="top-left">
-      <img src="logo.png">
-      <a onclick="showPage('dashboard')">Etusivu</a>
-      <a onclick="showPage('trips')">Junamatkat</a>
-    </div>
-
-    <div class="top-right">
-      <span id="userEmail"></span>
-      <button onclick="logout()">Kirjaudu ulos</button>
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="page">
+    <div class="card">
+      <h2>Tilastot</h2>
+      <canvas id="chart"></canvas>
     </div>
   </div>
 
-  <div class="main">
+  <!-- 🚆 TRIPS -->
+  <div id="trips" class="page" style="display:none;">
+    <div class="card">
+      <h2>Luo matka</h2>
 
-    <!-- DASHBOARD -->
-    <div id="dashboard" class="page">
-      <div class="card">
-        <h2>Tilastot</h2>
-        <canvas id="chart"></canvas>
-      </div>
+      <input id="tripName" placeholder="Matkan nimi">
+      <input id="trainNumber" placeholder="Junan numero">
+      <textarea id="tripDesc" placeholder="Kuvaus"></textarea>
+
+      <select id="tripStatus">
+        <option value="draft">Draft</option>
+        <option value="published">Published</option>
+      </select>
+
+      <button onclick="addTrip()">Tallenna</button>
     </div>
 
-    <!-- 🚆 TRIPS -->
-    <div id="trips" class="page" style="display:none;">
-      <div class="card">
-        <h2>Luo / Muokkaa matka</h2>
+    <div class="card">
+      <h2>Matkat</h2>
 
-        <input id="tripName" placeholder="Matkan nimi">
-        <input id="trainNumber" placeholder="Junan numero">
-        <textarea id="tripDesc" placeholder="Kuvaus"></textarea>
-
-        <select id="tripStatus">
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-        </select>
-
-        <button onclick="addTrip()">Tallenna</button>
-      </div>
-
-      <div class="card">
-        <h2>Matkat</h2>
-
-        <table>
-          <tr>
-            <th>Nimi</th>
-            <th>Juna</th>
-            <th>Status</th>
-            <th>Toiminnot</th>
-          </tr>
-          <tbody id="tripList"></tbody>
-        </table>
-      </div>
+      <table>
+        <tr>
+          <th>Nimi</th>
+          <th>Juna</th>
+          <th>Status</th>
+          <th>Toiminnot</th>
+        </tr>
+        <tbody id="tripList"></tbody>
+      </table>
     </div>
-
   </div>
+
 </div>
 
 <script>
-
-// 🔐 AUTH STATE
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    loginPage.style.display = "none";
-    app.style.display = "block";
-    document.getElementById("userEmail").innerText = user.email;
-    loadTrips();
-  } else {
-    loginPage.style.display = "block";
-    app.style.display = "none";
-  }
-});
-
-// 🔐 LOGIN (browser validation)
-function login(e) {
-  e.preventDefault();
-
-  const email = emailInput.value;
-  const password = passwordInput.value;
-
-  signInWithEmailAndPassword(auth, email, password)
-    .catch(() => {
-      emailInput.setCustomValidity("Virheellinen sähköposti tai salasana");
-      emailInput.reportValidity();
-    });
-}
-
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-
-// LOGOUT
-function logout() {
-  signOut(auth);
-}
 
 // NAV
 function showPage(id) {
   document.querySelectorAll(".page").forEach(p => p.style.display = "none");
   document.getElementById(id).style.display = "block";
+}
+
+// LOGOUT (reload → uusi login popup)
+function logout() {
+  location.reload();
 }
 
 // ➕ ADD TRIP
@@ -248,6 +218,8 @@ async function addTrip() {
 // 📥 LOAD TRIPS
 async function loadTrips() {
   const list = document.getElementById("tripList");
+  if (!list) return;
+
   list.innerHTML = "";
 
   const snapshot = await getDocs(collection(db, "trips"));
@@ -289,138 +261,6 @@ new Chart(ctx, {
   }
 });
 
-</script>
-
-</body>
-</html><style>
-body { margin:0; font-family: Arial; background:#f5f7fa; }
-.topbar { background:white; padding:15px; display:flex; gap:20px; }
-.topbar a { cursor:pointer; }
-.main { padding:20px; }
-.card { background:white; padding:20px; border-radius:10px; margin-bottom:20px; }
-button { padding:10px; }
-input, textarea { width:100%; padding:8px; margin:5px 0; }
-</style>
-</head>
-
-<body>
-
-<!-- LOGIN -->
-<div id="loginPage" class="main">
-  <div class="card">
-    <h2>Kirjaudu</h2>
-    <input id="email" placeholder="Sähköposti">
-    <input id="password" type="password" placeholder="Salasana">
-    <button onclick="login()">Kirjaudu</button>
-  </div>
-</div>
-
-<!-- APP -->
-<div id="app" style="display:none;">
-
-  <div class="topbar">
-    <a onclick="showPage('dashboard')">Etusivu</a>
-    <a onclick="showPage('trips')">Junamatkat</a>
-    <a onclick="logout()">Kirjaudu ulos</a>
-  </div>
-
-  <div class="main">
-
-    <!-- DASHBOARD -->
-    <div id="dashboard" class="page">
-      <div class="card">
-        <h2>Dashboard</h2>
-        <canvas id="chart"></canvas>
-      </div>
-    </div>
-
-    <!-- TRIPS -->
-    <div id="trips" class="page" style="display:none;">
-      <div class="card">
-        <h2>Junamatkat</h2>
-
-        <input id="tripName" placeholder="Matkan nimi">
-        <input id="trainNumber" placeholder="Junan numero">
-        <button onclick="addTrip()">Tallenna</button>
-
-        <h3>Matkat</h3>
-        <ul id="tripList"></ul>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<script>
-// AUTH STATE
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    document.getElementById("loginPage").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    loadTrips();
-  } else {
-    document.getElementById("loginPage").style.display = "block";
-    document.getElementById("app").style.display = "none";
-  }
-});
-
-// LOGIN
-function login() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-
-  signInWithEmailAndPassword(auth, email, password)
-    .catch(err => alert(err.message));
-}
-
-// LOGOUT
-function logout() {
-  signOut(auth);
-}
-
-// NAV
-function showPage(id) {
-  document.querySelectorAll(".page").forEach(p => p.style.display = "none");
-  document.getElementById(id).style.display = "block";
-}
-
-// ADD TRIP
-async function addTrip() {
-  const name = document.getElementById("tripName").value;
-  const train = document.getElementById("trainNumber").value;
-
-  await addDoc(collection(db, "trips"), {
-    name: name,
-    trainNumber: train,
-    createdAt: new Date()
-  });
-
-  loadTrips();
-}
-
-// LOAD TRIPS
-async function loadTrips() {
-  const list = document.getElementById("tripList");
-  list.innerHTML = "";
-
-  const querySnapshot = await getDocs(collection(db, "trips"));
-
-  querySnapshot.forEach(doc => {
-    const li = document.createElement("li");
-    li.innerText = doc.data().name + " (" + doc.data().trainNumber + ")";
-    list.appendChild(li);
-  });
-}
-
-// CHART
-const ctx = document.getElementById('chart');
-new Chart(ctx, {
-  type: 'bar',
-  data: {
-    labels: ['Ma','Ti','Ke','To','Pe'],
-    datasets: [{ label:'Liput', data:[5,10,7,12,9] }]
-  }
-});
 </script>
 
 </body>

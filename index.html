@@ -3,24 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Admin</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<!-- 🔐 SIMPLE POPUP LOGIN -->
+<!-- 🔐 LOGIN (ESTÄÄ KOKO SIVUN) -->
 <script>
-const ADMIN_USER = "admin";
-const ADMIN_PASS = "1234";
+(function () {
+  const ADMIN_USER = "admin";
+  const ADMIN_PASS = "1234";
 
-const user = prompt("Käyttäjätunnus:");
-const pass = prompt("Salasana:");
+  const user = prompt("Käyttäjätunnus:");
+  const pass = prompt("Salasana:");
 
-if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
-  alert("Väärä tunnus");
-  document.write("Pääsy estetty");
-  throw new Error("Access denied");
-}
+  if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
+    document.open();
+    document.write(`
+      <h1 style="font-family:Arial;text-align:center;margin-top:100px;">
+        Pääsy estetty
+      </h1>
+    `);
+    document.close();
+    throw new Error("STOP"); // 💥 estää kaiken muun
+  }
+})();
 </script>
 
 <!-- 🔥 FIREBASE -->
@@ -35,6 +41,223 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// tee globaaliksi
+window.db = db;
+window.collection = collection;
+window.addDoc = addDoc;
+window.getDocs = getDocs;
+window.updateDoc = updateDoc;
+window.doc = doc;
+
+// lataa matkat kun valmis
+window.addEventListener("DOMContentLoaded", () => {
+  loadTrips();
+});
+</script>
+
+<style>
+body { margin:0; font-family: Arial; background:#f5f7fa; }
+
+.topbar {
+  background:#dc2626;
+  color:white;
+  padding:10px 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.top-left {
+  display:flex;
+  align-items:center;
+  gap:20px;
+}
+
+.top-left img {
+  height:40px;
+}
+
+.top-left a {
+  color:white;
+  cursor:pointer;
+  text-decoration:none;
+}
+
+.main { padding:20px; }
+
+.card {
+  background:white;
+  padding:20px;
+  border-radius:10px;
+  margin-bottom:20px;
+}
+
+input, textarea, select {
+  width:100%;
+  padding:8px;
+  margin:5px 0 10px 0;
+  border-radius:6px;
+  border:1px solid #ccc;
+}
+
+button {
+  background:#dc2626;
+  color:white;
+  border:none;
+  padding:10px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+table {
+  width:100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding:10px;
+  border-bottom:1px solid #eee;
+}
+</style>
+</head>
+
+<body>
+
+<!-- 🔴 NAV -->
+<div class="topbar">
+  <div class="top-left">
+    <img src="logo.png">
+    <a onclick="showPage('dashboard')">Etusivu</a>
+    <a onclick="showPage('trips')">Junamatkat</a>
+  </div>
+
+  <div>
+    <button onclick="logout()">Kirjaudu ulos</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="page">
+    <div class="card">
+      <h2>Tilastot</h2>
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+
+  <!-- TRIPS -->
+  <div id="trips" class="page" style="display:none;">
+    <div class="card">
+      <h2>Luo matka</h2>
+
+      <input id="tripName" placeholder="Matkan nimi">
+      <input id="trainNumber" placeholder="Junan numero">
+      <textarea id="tripDesc" placeholder="Kuvaus"></textarea>
+
+      <select id="tripStatus">
+        <option value="draft">Draft</option>
+        <option value="published">Published</option>
+      </select>
+
+      <button onclick="addTrip()">Tallenna</button>
+    </div>
+
+    <div class="card">
+      <h2>Matkat</h2>
+
+      <table>
+        <tr>
+          <th>Nimi</th>
+          <th>Juna</th>
+          <th>Status</th>
+          <th>Toiminnot</th>
+        </tr>
+        <tbody id="tripList"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+
+// NAV
+function showPage(id) {
+  document.querySelectorAll(".page").forEach(p => p.style.display = "none");
+  document.getElementById(id).style.display = "block";
+}
+
+// LOGOUT
+function logout() {
+  location.reload(); // pakottaa uuden loginin
+}
+
+// ADD TRIP
+async function addTrip() {
+  await addDoc(collection(db, "trips"), {
+    name: tripName.value,
+    trainNumber: trainNumber.value,
+    description: tripDesc.value,
+    status: tripStatus.value,
+    createdAt: new Date()
+  });
+
+  loadTrips();
+}
+
+// LOAD TRIPS
+async function loadTrips() {
+  const list = document.getElementById("tripList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  const snapshot = await getDocs(collection(db, "trips"));
+
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${data.name}</td>
+      <td>${data.trainNumber}</td>
+      <td>${data.status}</td>
+      <td>
+        <button onclick="publishTrip('${docSnap.id}')">Julkaise</button>
+      </td>
+    `;
+
+    list.appendChild(tr);
+  });
+}
+
+// PUBLISH
+async function publishTrip(id) {
+  await updateDoc(doc(db, "trips", id), {
+    status: "published"
+  });
+
+  loadTrips();
+}
+
+// CHART
+const ctx = document.getElementById('chart');
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: ['Ma','Ti','Ke','To','Pe'],
+    datasets: [{ label:'Liput', data:[5,10,7,12,9] }]
+  }
+});
+
+</script>
+
+</body>
+</html>const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // tehdään globaaliksi
